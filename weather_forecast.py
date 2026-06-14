@@ -4,7 +4,7 @@ import pandas as pd
 from collections import Counter
 
 # -----------------------------
-# Page
+# Page setup
 # -----------------------------
 st.set_page_config(
     page_title="Погода в Крупках",
@@ -13,85 +13,97 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Clean, light styling
+# Light, simple styling
 # -----------------------------
 st.markdown("""
 <style>
     .stApp {
         background: #ffffff;
+        color: #111111;
     }
 
     .block-container {
-        padding-top: 1.2rem;
+        padding-top: 1.0rem;
         padding-bottom: 2rem;
         max-width: 1200px;
     }
 
     html, body, [class*="css"] {
         font-size: 18px;
+        color: #111111 !important;
     }
 
-    h1, h2, h3, h4, h5, h6 {
-        color: #111111;
+    h1, h2, h3, h4, h5, h6,
+    p, span, label, div {
+        color: #111111 !important;
+        opacity: 1 !important;
     }
 
     .page-title {
-        font-size: 42px !important;
+        font-size: 42px;
         font-weight: 800;
-        margin-bottom: 0.15rem;
         line-height: 1.1;
+        margin-bottom: 0.15rem;
     }
 
     .page-subtitle {
-        font-size: 18px !important;
-        color: #555555;
+        font-size: 18px;
+        color: #444444 !important;
         margin-bottom: 1rem;
     }
 
-    .panel {
-        border: 1px solid #e8e8e8;
-        border-radius: 16px;
-        padding: 16px 18px;
-        background: #ffffff;
-    }
-
-    .current-emoji {
-        font-size: 72px;
-        line-height: 1;
-        margin: 0;
-    }
-
-    .current-text {
+    .section-title {
         font-size: 24px;
         font-weight: 800;
-        margin-top: 6px;
-        margin-bottom: 0;
+        margin: 0.5rem 0 0.7rem 0;
     }
 
-    .small-muted {
+    .rule {
+        border-top: 1px solid #e9ecef;
+        margin: 0.9rem 0 1rem 0;
+    }
+
+    .wx-wrap {
+        padding: 8px 0 2px 0;
+    }
+
+    .wx-icon {
+        font-size: 76px;
+        line-height: 1;
+        margin-bottom: 6px;
+    }
+
+    .wx-text {
+        font-size: 24px;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    .wx-sub {
         font-size: 15px;
-        color: #666666;
+        color: #666666 !important;
     }
 
     div[data-testid="stMetric"] {
-        background: #fbfbfb;
-        border: 1px solid #ededed;
-        border-radius: 14px;
-        padding: 12px 14px;
+        background: #fafbfc;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px 12px;
     }
 
     div[data-testid="stMetricValue"] {
         font-size: 30px !important;
         font-weight: 800;
+        color: #111111 !important;
     }
 
     div[data-testid="stMetricLabel"] {
         font-size: 15px !important;
-        color: #444444;
+        color: #444444 !important;
     }
 
     div[data-testid="stDataFrame"] {
-        border: 1px solid #ededed;
+        border: 1px solid #e5e7eb;
         border-radius: 14px;
         overflow: hidden;
     }
@@ -100,16 +112,11 @@ st.markdown("""
         font-size: 17px !important;
     }
 
-    .section-title {
-        font-size: 24px;
-        font-weight: 800;
-        margin-top: 0.3rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .rule {
-        border-top: 1px solid #ededed;
-        margin: 0.9rem 0 1rem 0;
+    [data-testid="stRadio"] label,
+    [data-testid="stRadio"] span {
+        color: #111111 !important;
+        opacity: 1 !important;
+        font-size: 17px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,7 +129,7 @@ LON = 29.1374
 TIMEZONE = "Europe/Minsk"
 
 # -----------------------------
-# WMO mapping
+# WMO code mapping
 # -----------------------------
 WMO_CODES = {
     0: {"text": "Ясно", "emoji": "☀️", "arrow": "↑"},
@@ -148,9 +155,6 @@ WMO_CODES = {
     99: {"text": "Сильная гроза", "emoji": "⛈️", "arrow": "⚡"},
 }
 
-# -----------------------------
-# Helpers
-# -----------------------------
 def get_meta(code: int):
     return WMO_CODES.get(code, {"text": "Неопределено", "emoji": "🌈", "arrow": "→"})
 
@@ -253,7 +257,6 @@ def build_view(hourly_df, daily_df, granularity):
     if granularity == "Утро / день / вечер":
         view = hourly_df.copy()
         view = view[view["part"].isin(["Утро", "День", "Вечер"])].copy()
-        view["День"] = view["time"].dt.strftime("%d.%m")
         agg = view.groupby(["date", "part"], as_index=False).agg({
             "temp": "mean",
             "feels": "mean",
@@ -287,7 +290,6 @@ def build_view(hourly_df, daily_df, granularity):
 
     if granularity == "По дням":
         view = daily_df.copy()
-        view["День"] = view["date"].dt.day_name(locale=None)  # fallback, we remap below
         view["Дата"] = view["date"].dt.strftime("%d.%m")
         view["День"] = view["date"].dt.weekday.map(weekday_ru)
         view = view[["День", "Дата", "symbol", "condition", "tmax", "tmin", "rain", "wind"]]
@@ -306,17 +308,19 @@ def build_view(hourly_df, daily_df, granularity):
             "Ветер км/ч": st.column_config.NumberColumn("Ветер км/ч", format="%.0f"),
         }
 
-    # По неделе
-    row = {
+    # По неделе: one compact summary row
+    codes = daily_df["code"].tolist()
+    most_common = Counter(codes).most_common(1)[0][0]
+    meta = get_meta(most_common)
+    view = pd.DataFrame([{
         "Период": "Ближайшая неделя",
-        "Значок": "📅",
-        "Погода": "Краткий обзор",
-        "Макс. °C": float(daily_df["tmax"].mean()),
-        "Мин. °C": float(daily_df["tmin"].mean()),
+        "Значок": meta["emoji"],
+        "Погода": meta["text"],
+        "Макс. °C": float(daily_df["tmax"].max()),
+        "Мин. °C": float(daily_df["tmin"].min()),
         "Осадки %": float(daily_df["rain"].max()),
         "Ветер км/ч": float(daily_df["wind"].mean()),
-    }
-    view = pd.DataFrame([row])
+    }])
     return view, {
         "Макс. °C": st.column_config.NumberColumn("Макс. °C", format="%.0f °C"),
         "Мин. °C": st.column_config.NumberColumn("Мин. °C", format="%.0f °C"),
@@ -328,9 +332,8 @@ def build_view(hourly_df, daily_df, granularity):
 # Header
 # -----------------------------
 st.markdown('<div class="page-title">Погода в Крупках</div>', unsafe_allow_html=True)
-st.markdown('<div class="page-subtitle">Простой и крупный вид. Без лишней ерунды.</div>', unsafe_allow_html=True)
+st.markdown('<div class="page-subtitle">Простой вид. Крупный шрифт. Без лишней ерунды.</div>', unsafe_allow_html=True)
 
-# Controls
 c1, c2 = st.columns([1.6, 1.2])
 with c1:
     granularity = st.radio(
@@ -368,45 +371,36 @@ current = raw["current"]
 current_meta = get_meta(current["weather_code"])
 
 # -----------------------------
-# Current conditions panel
+# Current weather block
 # -----------------------------
-with st.container(border=True):
-    left, right = st.columns([1.2, 3.0], vertical_alignment="center")
+left, right = st.columns([1.1, 3.2], vertical_alignment="center")
 
-    with left:
-        st.markdown(
-            f'<div class="current-emoji">{symbol_for(current_meta, symbol_style)}</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f'<div class="current-text">{current_meta["text"]}</div>',
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f'<div class="small-muted">Сейчас в Крупках</div>',
-            unsafe_allow_html=True
-        )
+with left:
+    st.markdown(f"""
+    <div class="wx-wrap">
+        <div class="wx-icon">{symbol_for(current_meta, symbol_style)}</div>
+        <div class="wx-text">{current_meta["text"]}</div>
+        <div class="wx-sub">Сейчас в Крупках</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with right:
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.metric("Температура", f'{current["temperature_2m"]:.1f} °C')
-        with m2:
-            st.metric("Ощущается", f'{current["apparent_temperature"]:.1f} °C')
-        with m3:
-            st.metric("Влажность", f'{current["relative_humidity_2m"]}%')
-        with m4:
-            st.metric("Ветер", f'{current["wind_speed_10m"]:.0f} км/ч')
+with right:
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("Температура", f'{current["temperature_2m"]:.1f} °C')
+    with m2:
+        st.metric("Ощущается", f'{current["apparent_temperature"]:.1f} °C')
+    with m3:
+        st.metric("Влажность", f'{current["relative_humidity_2m"]}%')
+    with m4:
+        st.metric("Ветер", f'{current["wind_speed_10m"]:.0f} км/ч')
 
-        st.markdown(
-            f'<div class="small-muted">Обновлено: сейчас · Код погоды: WMO {current["weather_code"]}</div>',
-            unsafe_allow_html=True
-        )
+st.markdown(f'<div class="wx-sub">Обновлено сейчас · Код погоды: WMO {current["weather_code"]}</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
 
 # -----------------------------
-# Table section
+# Forecast table
 # -----------------------------
 st.markdown('<div class="section-title">Прогноз</div>', unsafe_allow_html=True)
 
@@ -419,7 +413,7 @@ elif granularity == "Утро / день / вечер":
 elif granularity == "По дням":
     table_height = 360
 else:
-    table_height = 160
+    table_height = 140
 
 st.dataframe(
     view_df,
