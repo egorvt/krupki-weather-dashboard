@@ -339,7 +339,6 @@ def build_table(hourly_df, daily_df, granularity):
 # Header
 # -----------------------------
 st.markdown('<div class="page-title">Погода в Крупках</div>', unsafe_allow_html=True)
-st.markdown('<div class="page-subtitle">Простой и крупный вид.</div>', unsafe_allow_html=True)
 
 granularity = st.radio(
     "Гранулярность таблицы",
