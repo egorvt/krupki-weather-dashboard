@@ -73,16 +73,26 @@ WMO_CODES = {
 }
 
 # Fetching Data from Open-Meteo
-@st.cache_data(ttl=900)
 def get_high_accuracy_weather(lat, lon):
-    url = (
-        f"https://open-meteo.com?"
-        f"latitude={lat}&longitude={lon}"
-        f"&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation_probability,wind_speed_10m,weather_code"
-        f"&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code"
-        f"&timezone=Europe%2FMinsk&forecast_days=3"
-    )
-    response = requests.get(url)
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "hourly": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation_probability,wind_speed_10m,weather_code",
+        "current": "temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code",
+        "timezone": "Europe/Minsk",
+        "forecast_days": 3
+    }
+    
+    # Send request with a clean parameter dictionary instead of a raw string
+    response = requests.get(url, params=params, timeout=10)
+    
+    # If the weather server returns a 502, 404, or 400 error, stop here and show it cleanly
+    if response.status_code != 200:
+        st.error(f"Weather API Node returned HTTP Error Status: {response.status_code}")
+        st.info("The Open-Meteo public server might be temporarily overloaded. Please try refreshing in 1-2 minutes.")
+        st.stop()
+        
     return response.json()
 
 with st.spinner("Streaming data from Open-Meteo servers..."):
