@@ -4,7 +4,7 @@ import pandas as pd
 from collections import Counter
 
 # -----------------------------
-# Page config
+# Page
 # -----------------------------
 st.set_page_config(
     page_title="Погода в Крупках",
@@ -14,11 +14,10 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Light, clean styling
+# Light theme styling
 # -----------------------------
 st.markdown("""
 <style>
-    /* Hide Streamlit top bar / header */
     header[data-testid="stHeader"] {
         display: none !important;
     }
@@ -32,7 +31,6 @@ st.markdown("""
         visibility: hidden !important;
     }
 
-    /* Force white page */
     .stApp {
         background: #ffffff !important;
         color: #111111 !important;
@@ -42,7 +40,6 @@ st.markdown("""
         padding-top: 0.8rem;
         padding-bottom: 1.5rem;
         max-width: 1200px;
-        background: #ffffff !important;
     }
 
     html, body, [class*="css"] {
@@ -51,7 +48,6 @@ st.markdown("""
         background: #ffffff !important;
     }
 
-    /* Make all text visible on white */
     h1, h2, h3, h4, h5, h6,
     p, span, label, div {
         color: #111111 !important;
@@ -103,7 +99,6 @@ st.markdown("""
         color: #666666 !important;
     }
 
-    /* Metrics */
     div[data-testid="stMetric"] {
         background: #fafbfc !important;
         border: 1px solid #e5e7eb !important;
@@ -122,32 +117,35 @@ st.markdown("""
         color: #444444 !important;
     }
 
-    /* Force dataframe white */
-    div[data-testid="stDataFrame"],
-    div[data-testid="stDataFrame"] div,
-    div[data-testid="stDataFrame"] section,
-    div[data-testid="stDataFrame"] [role="table"] {
-        background: #ffffff !important;
-        color: #111111 !important;
-    }
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid #e5e7eb !important;
-        border-radius: 14px;
-        overflow: hidden;
-    }
-
-    div[data-testid="stDataFrame"] * {
-        font-size: 17px !important;
-        color: #111111 !important;
-    }
-
-    /* Radio */
     [data-testid="stRadio"] label,
     [data-testid="stRadio"] span {
         color: #111111 !important;
         opacity: 1 !important;
         font-size: 17px !important;
+    }
+
+    /* Make table look clean and white */
+    div[data-testid="stTable"] {
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #ffffff !important;
+    }
+
+    div[data-testid="stTable"] table {
+        background: #ffffff !important;
+        color: #111111 !important;
+    }
+
+    div[data-testid="stTable"] th {
+        background: #f8f9fb !important;
+        color: #111111 !important;
+        font-weight: 700 !important;
+    }
+
+    div[data-testid="stTable"] td {
+        background: #ffffff !important;
+        color: #111111 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -160,7 +158,7 @@ LON = 29.1374
 TIMEZONE = "Europe/Minsk"
 
 # -----------------------------
-# WMO mapping
+# Weather codes
 # -----------------------------
 WMO_CODES = {
     0: {"text": "Ясно", "emoji": "☀️"},
@@ -186,9 +184,6 @@ WMO_CODES = {
     99: {"text": "Сильная гроза", "emoji": "⛈️"},
 }
 
-# -----------------------------
-# Helpers
-# -----------------------------
 def get_meta(code: int):
     return WMO_CODES.get(code, {"text": "Неизвестно", "emoji": "🌈"})
 
@@ -253,14 +248,14 @@ def build_daily_df(raw):
     df["emoji"] = df["code"].apply(lambda x: get_meta(x)["emoji"])
     return df
 
-def build_view(hourly_df, daily_df, granularity):
+def build_table(hourly_df, daily_df, granularity):
     weekday_ru = {
         0: "Пн", 1: "Вт", 2: "Ср", 3: "Чт",
         4: "Пт", 5: "Сб", 6: "Вс"
     }
 
     if granularity == "Почасово":
-        view = hourly_df.copy().head(24).copy()
+        view = hourly_df.head(24).copy()
         view["Время"] = view["time"].dt.strftime("%d.%m %H:%M")
         view = view[["Время", "emoji", "condition", "temp", "feels", "rain", "wind", "humidity"]]
         view = view.rename(columns={
@@ -272,14 +267,12 @@ def build_view(hourly_df, daily_df, granularity):
             "wind": "Ветер км/ч",
             "humidity": "Влажн. %"
         })
-        cfg = {
-            "Темп.": st.column_config.NumberColumn("Темп.", format="%.1f °C"),
-            "Ощущ.": st.column_config.NumberColumn("Ощущ.", format="%.1f °C"),
-            "Осадки %": st.column_config.NumberColumn("Осадки %", format="%d%%"),
-            "Ветер км/ч": st.column_config.NumberColumn("Ветер км/ч", format="%.0f"),
-            "Влажн. %": st.column_config.NumberColumn("Влажн. %", format="%d%%"),
-        }
-        return view, cfg
+        view["Темп."] = view["Темп."].map(lambda x: f"{x:.1f} °C")
+        view["Ощущ."] = view["Ощущ."].map(lambda x: f"{x:.1f} °C")
+        view["Осадки %"] = view["Осадки %"].map(lambda x: f"{int(x)}%")
+        view["Ветер км/ч"] = view["Ветер км/ч"].map(lambda x: f"{x:.0f}")
+        view["Влажн. %"] = view["Влажн. %"].map(lambda x: f"{int(x)}%")
+        return view[["Время", "Значок", "Погода", "Темп.", "Ощущ.", "Осадки %", "Ветер км/ч", "Влажн. %"]]
 
     if granularity == "Утро / день / вечер":
         view = hourly_df.copy()
@@ -294,7 +287,7 @@ def build_view(hourly_df, daily_df, granularity):
             "code": dominant_code
         })
 
-        agg["День"] = pd.to_datetime(agg["date"]).dt.strftime("%d.%m")
+        agg["Дата"] = pd.to_datetime(agg["date"]).dt.strftime("%d.%m")
         agg["Часть дня"] = agg["part"]
         agg["Погода"] = agg["code"].apply(lambda x: get_meta(x)["text"])
         agg["Значок"] = agg["code"].apply(lambda x: get_meta(x)["emoji"])
@@ -303,23 +296,13 @@ def build_view(hourly_df, daily_df, granularity):
         agg["Часть дня"] = agg["Часть дня"].astype(order)
         agg = agg.sort_values(["date", "Часть дня"])
 
-        agg = agg[["День", "Часть дня", "Значок", "Погода", "temp", "feels", "rain", "wind", "humidity"]]
-        agg = agg.rename(columns={
-            "temp": "Темп.",
-            "feels": "Ощущ.",
-            "rain": "Осадки %",
-            "wind": "Ветер км/ч",
-            "humidity": "Влажн. %"
-        })
+        agg["Темп."] = agg["temp"].map(lambda x: f"{x:.1f} °C")
+        agg["Ощущ."] = agg["feels"].map(lambda x: f"{x:.1f} °C")
+        agg["Осадки %"] = agg["rain"].map(lambda x: f"{int(x)}%")
+        agg["Ветер км/ч"] = agg["wind"].map(lambda x: f"{x:.1f}")
+        agg["Влажн. %"] = agg["humidity"].map(lambda x: f"{x:.1f}%")
 
-        cfg = {
-            "Темп.": st.column_config.NumberColumn("Темп.", format="%.1f °C"),
-            "Ощущ.": st.column_config.NumberColumn("Ощущ.", format="%.1f °C"),
-            "Осадки %": st.column_config.NumberColumn("Осадки %", format="%d%%"),
-            "Ветер км/ч": st.column_config.NumberColumn("Ветер км/ч", format="%.1f"),
-            "Влажн. %": st.column_config.NumberColumn("Влажн. %", format="%.1f%%"),
-        }
-        return agg, cfg
+        return agg[["Дата", "Часть дня", "Значок", "Погода", "Темп.", "Ощущ.", "Осадки %", "Ветер км/ч", "Влажн. %"]]
 
     if granularity == "По дням":
         view = daily_df.copy()
@@ -334,32 +317,23 @@ def build_view(hourly_df, daily_df, granularity):
             "rain": "Осадки %",
             "wind": "Ветер км/ч"
         })
-        cfg = {
-            "Макс. °C": st.column_config.NumberColumn("Макс. °C", format="%.0f °C"),
-            "Мин. °C": st.column_config.NumberColumn("Мин. °C", format="%.0f °C"),
-            "Осадки %": st.column_config.NumberColumn("Осадки %", format="%d%%"),
-            "Ветер км/ч": st.column_config.NumberColumn("Ветер км/ч", format="%.0f"),
-        }
-        return view, cfg
+        view["Макс. °C"] = view["Макс. °C"].map(lambda x: f"{x:.0f} °C")
+        view["Мин. °C"] = view["Мин. °C"].map(lambda x: f"{x:.0f} °C")
+        view["Осадки %"] = view["Осадки %"].map(lambda x: f"{int(x)}%")
+        view["Ветер км/ч"] = view["Ветер км/ч"].map(lambda x: f"{x:.0f}")
+        return view[["День", "Дата", "Значок", "Погода", "Макс. °C", "Мин. °C", "Осадки %", "Ветер км/ч"]]
 
     # По неделе
     row = {
         "Период": "Ближайшая неделя",
         "Значок": "📅",
         "Погода": "Краткий обзор",
-        "Макс. °C": float(daily_df["tmax"].mean()),
-        "Мин. °C": float(daily_df["tmin"].mean()),
-        "Осадки %": float(daily_df["rain"].max()),
-        "Ветер км/ч": float(daily_df["wind"].mean()),
+        "Макс. °C": f"{daily_df['tmax'].mean():.0f} °C",
+        "Мин. °C": f"{daily_df['tmin'].mean():.0f} °C",
+        "Осадки %": f"{daily_df['rain'].max():.0f}%",
+        "Ветер км/ч": f"{daily_df['wind'].mean():.0f}",
     }
-    view = pd.DataFrame([row])
-    cfg = {
-        "Макс. °C": st.column_config.NumberColumn("Макс. °C", format="%.0f °C"),
-        "Мин. °C": st.column_config.NumberColumn("Мин. °C", format="%.0f °C"),
-        "Осадки %": st.column_config.NumberColumn("Осадки %", format="%d%%"),
-        "Ветер км/ч": st.column_config.NumberColumn("Ветер км/ч", format="%.0f"),
-    }
-    return view, cfg
+    return pd.DataFrame([row])
 
 # -----------------------------
 # Header
@@ -367,7 +341,6 @@ def build_view(hourly_df, daily_df, granularity):
 st.markdown('<div class="page-title">Погода в Крупках</div>', unsafe_allow_html=True)
 st.markdown('<div class="page-subtitle">Простой и крупный вид.</div>', unsafe_allow_html=True)
 
-# Controls: only granularity stays
 granularity = st.radio(
     "Гранулярность таблицы",
     ["Почасово", "Утро / день / вечер", "По дням", "По неделе"],
@@ -376,7 +349,7 @@ granularity = st.radio(
 )
 
 # -----------------------------
-# Data loading
+# Load data
 # -----------------------------
 with st.spinner("Загружаю погоду..."):
     try:
@@ -429,25 +402,17 @@ with st.container(border=True):
 st.markdown('<div class="rule"></div>', unsafe_allow_html=True)
 
 # -----------------------------
-# Forecast table
+# Table
 # -----------------------------
 st.markdown('<div class="section-title">Прогноз</div>', unsafe_allow_html=True)
 
-view_df, col_cfg = build_view(hourly_df, daily_df, granularity)
+table_df = build_table(hourly_df, daily_df, granularity)
 
 if granularity == "Почасово":
-    table_height = 520
+    st.table(table_df.head(24))
 elif granularity == "Утро / день / вечер":
-    table_height = 480
+    st.table(table_df)
 elif granularity == "По дням":
-    table_height = 360
+    st.table(table_df)
 else:
-    table_height = 160
-
-st.dataframe(
-    view_df,
-    use_container_width=True,
-    hide_index=True,
-    height=table_height,
-    column_config=col_cfg
-)
+    st.table(table_df)
